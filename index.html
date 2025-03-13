@@ -77,53 +77,48 @@
         let accounts;
 
         async function connectWallet() {
-            if (window.ethereum) {
-                web3 = new Web3(window.ethereum);
-                try {
-                    accounts = await ethereum.request({ method: 'eth_requestAccounts' });
-                    contract = new web3.eth.Contract(contractABI, contractAddress);
-                    console.log("Wallet Connected:", accounts);
-                    console.log("Contract Initialized:", contract);
-                    alert("Wallet Connected!");
-                    loadMessages();
-                } catch (error) {
-                    console.error("Wallet connection failed:", error);
-                    alert("Failed to connect wallet. Check console for details.");
-                }
-            } else {
+            if (typeof window.ethereum === "undefined") {
+                console.error("🚨 MetaMask not detected. Install MetaMask.");
                 alert("Please install MetaMask");
+                return;
+            }
+            
+            web3 = new Web3(window.ethereum);
+            try {
+                accounts = await ethereum.request({ method: 'eth_requestAccounts' });
+                contract = new web3.eth.Contract(contractABI, contractAddress);
+                console.log("✅ Wallet Connected:", accounts);
+                document.querySelector("button").innerText = "Wallet Connected";
+                loadMessages();
+            } catch (error) {
+                console.error("❌ Error connecting to wallet:", error);
+                alert("Error connecting to wallet. Check console for details.");
             }
         }
 
         async function postMessage() {
-            const messageInput = document.getElementById("messageInput");
-            if (!messageInput) return alert("Message input not found!");
-
-            const message = messageInput.value.trim();  // Trim spaces
-            if (!message) return alert("Enter a message");  // Prevent empty messages
-
-            if (!accounts || accounts.length === 0) {
-                return alert("Please connect your wallet first.");
+            const message = document.getElementById("messageInput").value;
+            if (!message) {
+                console.warn("⚠️ Enter a message before posting.");
+                alert("Enter a message");
+                return;
             }
 
             try {
-                await contract.methods.postMessage(message).send({ 
+                const tx = await contract.methods.postMessage(message).send({ 
                     from: accounts[0], 
                     value: web3.utils.toWei("0.01", "ether") 
                 });
-                messageInput.value = ""; // Clear input field after sending
+                console.log("✅ Transaction Successful:", tx);
+                document.getElementById("messageInput").value = "";
                 loadMessages();
             } catch (error) {
-                console.error("Transaction failed:", error);
-                alert("Transaction failed. Check the console for details.");
+                console.error("❌ Error posting message:", error);
+                alert("Error posting message. Check console for details.");
             }
         }
 
         async function loadMessages() {
-            if (!contract) {
-                console.error("Contract not initialized.");
-                return;
-            }
             try {
                 const messagesDiv = document.getElementById("messages");
                 messagesDiv.innerHTML = "Loading messages...";
@@ -136,7 +131,7 @@
                     messagesDiv.appendChild(msgElement);
                 });
             } catch (error) {
-                console.error("Failed to load messages:", error);
+                console.error("❌ Error loading messages:", error);
                 alert("Error loading messages. Check console for details.");
             }
         }
