@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Monad Message Board</title>
+    <script src="https://cdn.jsdelivr.net/npm/web3/dist/web3.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #0D0D0D;
+            color: #F8F8F8;
+            text-align: center;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #1A1A1A;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(255, 255, 255, 0.1);
+        }
+        button {
+            background-color: #FF2D55;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            margin: 10px;
+            cursor: pointer;
+            font-size: 16px;
+            border-radius: 5px;
+            transition: 0.3s;
+        }
+        button:hover {
+            background-color: #FF5A77;
+        }
+        input {
+            width: calc(100% - 22px);
+            padding: 10px;
+            margin: 10px 0;
+            border: none;
+            border-radius: 5px;
+            background: #333;
+            color: white;
+        }
+        #messages {
+            margin-top: 20px;
+            text-align: left;
+        }
+        .message {
+            background: #262626;
+            border-left: 5px solid #FF2D55;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(255, 255, 255, 0.1);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Monad Message Board</h1>
+        <button onclick="connectWallet()">Connect Wallet</button>
+        <input type="text" id="messageInput" placeholder="Enter your message">
+        <button onclick="postMessage()">Post Message</button>
+        <div id="messages"></div>
+    </div>
+
+    <script>
+        const contractAddress = "0xb2A477520f5f058b6f6ED0523185FFE4F4A68F68";
+        const contractABI = [ /* Insert your contract ABI here */ ];
+        
+        let web3;
+        let contract;
+        let accounts;
+
+        async function connectWallet() {
+            if (window.ethereum) {
+                web3 = new Web3(window.ethereum);
+                accounts = await ethereum.request({ method: 'eth_requestAccounts' });
+                contract = new web3.eth.Contract(contractABI, contractAddress);
+                alert("Wallet Connected!");
+                loadMessages();
+            } else {
+                alert("Please install MetaMask");
+            }
+        }
+
+        async function postMessage() {
+            const message = document.getElementById("messageInput").value;
+            if (!message) return alert("Enter a message");
+            await contract.methods.postMessage(message).send({ from: accounts[0], value: web3.utils.toWei("0.01", "ether") });
+            document.getElementById("messageInput").value = "";
+            loadMessages();
+        }
+
+        async function loadMessages() {
+            const messagesDiv = document.getElementById("messages");
+            messagesDiv.innerHTML = "Loading messages...";
+            const messages = await contract.methods.getMessages().call();
+            messagesDiv.innerHTML = "";
+            messages.reverse().forEach(msg => {
+                const msgElement = document.createElement("div");
+                msgElement.classList.add("message");
+                msgElement.innerHTML = `<strong>${msg.sender}</strong>: ${msg.content} <br> <small>${new Date(msg.timestamp * 1000).toLocaleString()}</small>`;
+                messagesDiv.appendChild(msgElement);
+            });
+        }
+    </script>
+</body>
+</html>
