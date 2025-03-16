@@ -62,9 +62,9 @@
 <body>
     <div class="container">
         <h1>Monad Message Board</h1>
-        <button onclick="connectWallet()">Connect Wallet</button>
+        <button id="connectButton">Connect Wallet</button>
         <input type="text" id="messageInput" placeholder="Enter your message">
-        <button onclick="postMessage()">Post Message</button>
+        <button id="postMessageButton">Post Message</button>
         <div id="messages"></div>
     </div>
 
@@ -76,54 +76,62 @@
         let contract;
         let accounts;
 
+        document.getElementById("connectButton").addEventListener("click", connectWallet);
+        document.getElementById("postMessageButton").addEventListener("click", postMessage);
+
         async function connectWallet() {
-            if (typeof window.ethereum === "undefined") {
-                console.error("🚨 MetaMask not detected. Install MetaMask.");
+            if (window.ethereum) {
+                web3 = new Web3(window.ethereum);
+                try {
+                    accounts = await ethereum.request({ method: 'eth_requestAccounts' });
+                    contract = new web3.eth.Contract(contractABI, contractAddress);
+                    console.log("Wallet Connected:", accounts);
+                    alert("Wallet Connected!");
+                    loadMessages();
+                } catch (error) {
+                    console.error("Wallet connection failed:", error);
+                    alert("Failed to connect wallet. Check console for details.");
+                }
+            } else {
                 alert("Please install MetaMask");
-                return;
-            }
-            
-            web3 = new Web3(window.ethereum);
-            try {
-                accounts = await ethereum.request({ method: 'eth_requestAccounts' });
-                contract = new web3.eth.Contract(contractABI, contractAddress);
-                console.log("✅ Wallet Connected:", accounts);
-                document.querySelector("button").innerText = "Wallet Connected";
-                loadMessages();
-            } catch (error) {
-                console.error("❌ Error connecting to wallet:", error);
-                alert("Error connecting to wallet. Check console for details.");
             }
         }
 
         async function postMessage() {
-            const message = document.getElementById("messageInput").value;
+            const messageInput = document.getElementById("messageInput");
+            const message = messageInput.value.trim();  // Trim spaces
+
             if (!message) {
-                console.warn("⚠️ Enter a message before posting.");
-                alert("Enter a message");
-                return;
+                return alert("Enter a message");  // Prevent empty messages
+            }
+
+            if (!accounts || accounts.length === 0) {
+                return alert("Please connect your wallet first.");
             }
 
             try {
-                const tx = await contract.methods.postMessage(message).send({ 
+                await contract.methods.postMessage(message).send({ 
                     from: accounts[0], 
                     value: web3.utils.toWei("0.01", "ether") 
                 });
-                console.log("✅ Transaction Successful:", tx);
-                document.getElementById("messageInput").value = "";
+                messageInput.value = ""; // Clear input field after sending
                 loadMessages();
             } catch (error) {
-                console.error("❌ Error posting message:", error);
-                alert("Error posting message. Check console for details.");
+                console.error("Transaction failed:", error);
+                alert("Transaction failed. Check the console for details.");
             }
         }
 
         async function loadMessages() {
+            if (!contract) {
+                console.error("Contract not initialized.");
+                return;
+            }
+            const messagesDiv = document.getElementById("messages");
+            messagesDiv.innerHTML = "Loading messages...";
             try {
-                const messagesDiv = document.getElementById("messages");
-                messagesDiv.innerHTML = "Loading messages...";
                 const messages = await contract.methods.getMessages().call();
-                messagesDiv.innerHTML = "";
+                messagesDiv.innerHTML = ""; // Clear loading state
                 messages.reverse().forEach(msg => {
                     const msgElement = document.createElement("div");
                     msgElement.classList.add("message");
@@ -131,8 +139,8 @@
                     messagesDiv.appendChild(msgElement);
                 });
             } catch (error) {
-                console.error("❌ Error loading messages:", error);
-                alert("Error loading messages. Check console for details.");
+                console.error("Failed to load messages:", error);
+                messagesDiv.innerHTML = "<p>Error loading messages. Please try again later.</p>";
             }
         }
     </script>
